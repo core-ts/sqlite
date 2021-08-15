@@ -2,13 +2,18 @@ import { Database } from 'sqlite3';
 import { buildToSave, buildToSaveBatch } from './build';
 import { Attribute, Attributes, Manager, Statement, StringMap } from './metadata';
 
+// tslint:disable-next-line:class-name
+export class resource {
+  static string?: boolean;
+}
+
 export class PoolManager implements Manager {
   constructor(public db: Database) {
     this.exec = this.exec.bind(this);
     this.execBatch = this.execBatch.bind(this);
     this.query = this.query.bind(this);
     this.queryOne = this.queryOne.bind(this);
-    this.executeScalar = this.executeScalar.bind(this);
+    this.execScalar = this.execScalar.bind(this);
     this.count = this.count.bind(this);
   }
   exec(sql: string, args?: any[]): Promise<number> {
@@ -23,8 +28,8 @@ export class PoolManager implements Manager {
   queryOne<T>(sql: string, args?: any[], m?: StringMap, fields?: Attribute[]): Promise<T> {
     return queryOne(this.db, sql, args, m, fields);
   }
-  executeScalar<T>(sql: string, args?: any[]): Promise<T> {
-    return executeScalar<T>(this.db, sql, args);
+  execScalar<T>(sql: string, args?: any[]): Promise<T> {
+    return execScalar<T>(this.db, sql, args);
   }
   count(sql: string, args?: any[]): Promise<number> {
     return count(this.db, sql, args);
@@ -46,7 +51,7 @@ export function execBatch(db: Database, statements: Statement[]): Promise<number
     return new Promise<number>((resolve, reject) => {
       let c = 0;
       statements.forEach((item, index) => {
-        db.run(item.query, toArray(item.args), (err: any, result: any) => {
+        db.run(item.query, toArray(item.params), (err: any, result: any) => {
           if (err) {
             reject(err);
           } else {
@@ -81,7 +86,7 @@ export function exec(db: Database, sql: string, args?: any[]): Promise<number> {
   });
 }
 export function query<T>(db: Database, sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T[]> {
-  const p = args ? args : [];
+  const p = args ? toArray(args) : [];
   return new Promise<T[]>((resolve, reject) => {
     return db.all(sql, p, (err: any, results: T[]) => {
       if (err) {
@@ -93,7 +98,7 @@ export function query<T>(db: Database, sql: string, args?: any[], m?: StringMap,
   });
 }
 export function queryOne<T>(db: Database, sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T> {
-  const p = args ? args : [];
+  const p = args ? toArray(args) : [];
   return new Promise<T>((resolve, reject) => {
     return db.get(sql, p, (err: any, result: any) => {
       if (err) {
@@ -104,7 +109,7 @@ export function queryOne<T>(db: Database, sql: string, args?: any[], m?: StringM
     });
   });
 }
-export function executeScalar<T>(db: Database, sql: string, args?: any[]): Promise<T> {
+export function execScalar<T>(db: Database, sql: string, args?: any[]): Promise<T> {
   return queryOne<T>(db, sql, args).then(r => {
     if (!r) {
       return null;
@@ -115,7 +120,7 @@ export function executeScalar<T>(db: Database, sql: string, args?: any[]): Promi
   });
 }
 export function count(db: Database, sql: string, args?: any[]): Promise<number> {
-  return executeScalar<number>(db, sql, args);
+  return execScalar<number>(db, sql, args);
 }
 export function save<T>(db: Database|((sql: string, args?: any[]) => Promise<number>), obj: T, table: string, attrs: Attributes, buildParam?: (i: number) => string, i?: number): Promise<number> {
   const stm = buildToSave(obj, table, attrs, buildParam, i);
@@ -123,9 +128,9 @@ export function save<T>(db: Database|((sql: string, args?: any[]) => Promise<num
     return Promise.resolve(0);
   } else {
     if (typeof db === 'function') {
-      return db(stm.query, stm.args);
+      return db(stm.query, stm.params);
     } else {
-      return exec(db, stm.query, stm.args);
+      return exec(db, stm.query, stm.params);
     }
   }
 }
@@ -141,17 +146,30 @@ export function saveBatch<T>(db: Database|((statements: Statement[]) => Promise<
     }
   }
 }
-export function toArray<T>(arr: T[]): T[] {
+export function toArray(arr: any[]): any[] {
   if (!arr || arr.length === 0) {
     return [];
   }
-  const p: T[] = [];
+  const p: any[] = [];
   const l = arr.length;
   for (let i = 0; i < l; i++) {
-    if (arr[i] === undefined) {
+    if (arr[i] === undefined || arr[i] == null) {
       p.push(null);
     } else {
-      p.push(arr[i]);
+      if (typeof arr[i] === 'object') {
+        if (arr[i] instanceof Date) {
+          p.push(arr[i]);
+        } else {
+          if (resource.string) {
+            const s: string = JSON.stringify(arr[i]);
+            p.push(s);
+          } else {
+            p.push(arr[i]);
+          }
+        }
+      } else {
+        p.push(arr[i]);
+      }
     }
   }
   return p;
@@ -352,9 +370,9 @@ export class SqliteWriter<T> {
     const stmt = buildToSave(obj2, this.table, this.attributes, this.param);
     if (stmt) {
       if (this.exec) {
-        return this.exec(stmt.query, stmt.args);
+        return this.exec(stmt.query, stmt.params);
       } else {
-        return exec(this.db, stmt.query, stmt.args);
+        return exec(this.db, stmt.query, stmt.params);
       }
     } else {
       return Promise.resolve(0);
@@ -426,7 +444,7 @@ export class PostgreSQLChecker {
   check(): Promise<AnyMap> {
     const obj = {} as AnyMap;
     const promise = new Promise<any>((resolve, reject) => {
-      this.db.get('select date();', (err, result) => {
+      this.db.get('select date()', (err, result) => {
         if (err) {
           return reject(err);
         } else {

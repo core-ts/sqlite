@@ -1,7 +1,7 @@
-import { Attribute, Attributes, Statement, StringMap } from './metadata';
+import {Attribute, Attributes, Statement, StringMap} from './metadata';
 
 export function param(i: number): string {
-  return '$' + i;
+  return '?';
 }
 export function params(length: number, from?: number): string[] {
   if (from === undefined || from == null) {
@@ -51,7 +51,7 @@ export function metadata(attrs: Attributes): Metadata {
       isMap = true;
     }
   }
-  const m: Metadata = {keys: ats, fields, version: ver};
+  const m: Metadata = { keys: ats, fields, version: ver };
   if (isMap) {
     m.map = mp;
   }
@@ -74,15 +74,17 @@ export function buildToSave<T>(obj: T, table: string, attrs: Attributes, buildPa
   for (const k of ks) {
     let v = obj[k];
     const attr = attrs[k];
-    if (attr && !attr.ignored && !attr.noinsert) {
-      if (v === undefined || v == null) {
+    if (attr && !attr.ignored) {
+      if (attr.default !== undefined && attr.default != null && (v === undefined || v == null)) {
         v = attr.default;
       }
-      if (v !== undefined && v != null) {
+      if (v !== undefined) {
         const field = (attr.field ? attr.field : k);
         cols.push(field);
         if (v === '') {
           values.push(`''`);
+        } else if (v == null) {
+          values.push(`null`);
         } else if (typeof v === 'number') {
           values.push(toString(v));
         } else {
@@ -107,7 +109,7 @@ export function buildToSave<T>(obj: T, table: string, attrs: Attributes, buildPa
     return null;
   } else {
     const query = `replace into ${table}(${cols.join(',')})values(${values.join(',')})`;
-    return { query, args };
+    return { query, params: args };
   }
 }
 export function buildToSaveBatch<T>(objs: T[], table: string, attrs: Attributes, buildParam?: (i: number) => string): Statement[] {
@@ -128,36 +130,40 @@ export function buildToSaveBatch<T>(objs: T[], table: string, attrs: Attributes,
     const args: any[] = [];
     for (const k of ks) {
       const attr = attrs[k];
-      let v = obj[k];
-      if (v === undefined || v == null) {
-        v = attr.default;
-      }
-      if (v != null && v !== undefined && !attr.ignored && !attr.noinsert) {
-        const field = (attr.field ? attr.field : k);
-        cols.push(field);
-        if (v === '') {
-          values.push(`''`);
-        } else if (typeof v === 'number') {
-          values.push(toString(v));
-        } else {
-          const p = buildParam(i++);
-          values.push(p);
-          if (typeof v === 'boolean') {
-            if (v === true) {
-              const v2 = (attr.true ? attr.true : '1');
-              args.push(v2);
-            } else {
-              const v2 = (attr.false ? attr.false : '0');
-              args.push(v2);
-            }
+      if (attr && !attr.ignored) {
+        let v = obj[k];
+        if (attr.default !== undefined && attr.default != null && (v === undefined || v == null)) {
+          v = attr.default;
+        }
+        if (v !== undefined) {
+          const field = (attr.field ? attr.field : k);
+          cols.push(field);
+          if (v === '') {
+            values.push(`''`);
+          } else if (v == null) {
+            values.push(`null`);
+          } else if (typeof v === 'number') {
+            values.push(toString(v));
           } else {
-            args.push(v);
+            const p = buildParam(i++);
+            values.push(p);
+            if (typeof v === 'boolean') {
+              if (v === true) {
+                const v2 = (attr.true ? attr.true : '1');
+                args.push(v2);
+              } else {
+                const v2 = (attr.false ? attr.false : '0');
+                args.push(v2);
+              }
+            } else {
+              args.push(v);
+            }
           }
         }
       }
     }
     const q = `replace into ${table}(${cols.join(',')})values(${values.join(',')})`;
-    const smt = { query: q, args };
+    const smt: Statement = { query: q, params: args };
     sts.push(smt);
   }
   return sts;

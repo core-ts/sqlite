@@ -3,7 +3,7 @@ export interface StringMap {
 }
 export interface Statement {
   query: string;
-  args?: any[];
+  params?: any[];
 }
 
 export interface Manager {
@@ -11,7 +11,7 @@ export interface Manager {
   execBatch(statements: Statement[]): Promise<number>;
   query<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T[]>;
   queryOne<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T>;
-  executeScalar<T>(sql: string, args?: any[]): Promise<T>;
+  execScalar<T>(sql: string, args?: any[]): Promise<T>;
   count(sql: string, args?: any[]): Promise<number>;
 }
 
