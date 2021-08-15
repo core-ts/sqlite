@@ -73,11 +73,18 @@ export function execBatch(db: Database, statements: Statement[]): Promise<number
       });
   });
 }
+function buildError(err: any): any {
+  if (err.errno === 19 && err.code === 'SQLITE_CONSTRAINT') {
+    err.error = 'duplicate';
+  }
+  return err;
+}
 export function exec(db: Database, sql: string, args?: any[]): Promise<number> {
-  const p = args ? toArray(args) : [];
+  const p = toArray(args);
   return new Promise<number>((resolve, reject) => {
     return db.run(sql, p, (err: any, results: any) => {
       if (err) {
+        buildError(err);
         return reject(err);
       } else {
         return resolve(1);
@@ -86,7 +93,7 @@ export function exec(db: Database, sql: string, args?: any[]): Promise<number> {
   });
 }
 export function query<T>(db: Database, sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T[]> {
-  const p = args ? toArray(args) : [];
+  const p = toArray(args);
   return new Promise<T[]>((resolve, reject) => {
     return db.all(sql, p, (err: any, results: T[]) => {
       if (err) {
@@ -98,7 +105,7 @@ export function query<T>(db: Database, sql: string, args?: any[], m?: StringMap,
   });
 }
 export function queryOne<T>(db: Database, sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T> {
-  const p = args ? toArray(args) : [];
+  const p = toArray(args);
   return new Promise<T>((resolve, reject) => {
     return db.get(sql, p, (err: any, result: any) => {
       if (err) {
