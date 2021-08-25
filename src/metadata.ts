@@ -8,7 +8,7 @@ export interface Statement {
 
 export interface Manager {
   exec(sql: string, args?: any[]): Promise<number>;
-  execBatch(statements: Statement[]): Promise<number>;
+  execBatch(statements: Statement[], firstSuccess?: boolean): Promise<number>;
   query<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T[]>;
   queryOne<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T>;
   execScalar<T>(sql: string, args?: any[]): Promise<T>;

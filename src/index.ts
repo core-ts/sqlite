@@ -19,8 +19,8 @@ export class PoolManager implements Manager {
   exec(sql: string, args?: any[]): Promise<number> {
     return exec(this.db, sql, args);
   }
-  execBatch(statements: Statement[]): Promise<number> {
-    return execBatch(this.db, statements);
+  execBatch(statements: Statement[], firstSuccess?: boolean): Promise<number> {
+    return execBatch(this.db, statements, firstSuccess);
   }
   query<T>(sql: string, args?: any[], m?: StringMap, fields?: Attribute[]): Promise<T[]> {
     return query(this.db, sql, args, m, fields);
@@ -46,32 +46,71 @@ export function execute(db: Database, sql: string): Promise<void> {
     });
   });
 }
-export function execBatch(db: Database, statements: Statement[]): Promise<number> {
-  return execute(db, 'begin transaction').then(() => {
-    return new Promise<number>((resolve, reject) => {
-      let c = 0;
-      statements.forEach((item, index) => {
-        db.run(item.query, toArray(item.params), (err: any, result: any) => {
-          if (err) {
-            reject(err);
-          } else {
-            c = c + 1;
-            if (c === statements.length) {
-              resolve(c);
+export function execBatch(db: Database, statements: Statement[], firstSuccess?: boolean): Promise<number> {
+  if (!statements || statements.length === 0) {
+    return Promise.resolve(0);
+  } else if (statements.length === 1) {
+    return exec(db, statements[0].query, statements[0].params);
+  }
+  if (firstSuccess) {
+    return execute(db, 'begin transaction').then(() => {
+      return exec(db, statements[0].query, toArray(statements[0].params)).then(() => {
+        const sub = statements.slice(1);
+        return new Promise<number>((resolve, reject) => {
+          let c = 1;
+          sub.forEach((item, index) => {
+            db.run(item.query, toArray(item.params), (err: any, result: any) => {
+              if (err) {
+                reject(err);
+              } else {
+                c = c + 1;
+                if (c === sub.length + 1) {
+                  resolve(c);
+                }
+              }
+            });
+          });
+        }).then(result => {
+            return execute(db, 'commit').then(() => {
+              return result;
+            });
+          }).catch(er0 => {
+            buildError(er0);
+            return execute(db, 'rollback').then(() => {
+              throw er0;
+            });
+          });
+      }).catch(() => {
+        return 0;
+      });
+    });
+  } else {
+    return execute(db, 'begin transaction').then(() => {
+      return new Promise<number>((resolve, reject) => {
+        let c = 0;
+        statements.forEach(item => {
+          db.run(item.query, toArray(item.params), (err: any, result: any) => {
+            if (err) {
+              reject(err);
+            } else {
+              c = c + 1;
+              if (c === statements.length) {
+                resolve(c);
+              }
             }
-          }
+          });
         });
-      });
-    }).then(result => {
-        return execute(db, 'commit').then(() => {
-          return result;
+      }).then(result => {
+          return execute(db, 'commit').then(() => {
+            return result;
+          });
+        }).catch(er0 => {
+          return execute(db, 'rollback').then(() => {
+            throw er0;
+          });
         });
-      }).catch(er0 => {
-        return execute(db, 'rollback').then(() => {
-          throw er0;
-        });
-      });
-  });
+    });
+  }
 }
 function buildError(err: any): any {
   if (err.errno === 19 && err.code === 'SQLITE_CONSTRAINT') {
