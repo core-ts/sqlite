@@ -475,7 +475,7 @@ export interface AnyMap {
   [key: string]: any;
 }
 // tslint:disable-next-line:max-classes-per-file
-export class PostgreSQLChecker {
+export class SQLiteChecker {
   constructor(private db: Database, private service?: string, private timeout?: number) {
     if (!this.timeout) {
       this.timeout = 4200;
