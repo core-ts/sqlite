@@ -7,12 +7,12 @@ export interface Statement {
 }
 
 export interface Manager {
-  exec(sql: string, args?: any[]): Promise<number>;
-  execBatch(statements: Statement[], firstSuccess?: boolean): Promise<number>;
-  query<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T[]>;
-  queryOne<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[]): Promise<T>;
-  execScalar<T>(sql: string, args?: any[]): Promise<T>;
-  count(sql: string, args?: any[]): Promise<number>;
+  exec(sql: string, args?: any[], ctx?: any): Promise<number>;
+  execBatch(statements: Statement[], firstSuccess?: boolean, ctx?: any): Promise<number>;
+  query<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[], ctx?: any): Promise<T[]>;
+  queryOne<T>(sql: string, args?: any[], m?: StringMap, bools?: Attribute[], ctx?: any): Promise<T>;
+  execScalar<T>(sql: string, args?: any[], ctx?: any): Promise<T>;
+  count(sql: string, args?: any[], ctx?: any): Promise<number>;
 }
 
 export type DataType = 'ObjectId' | 'date' | 'datetime' | 'time'

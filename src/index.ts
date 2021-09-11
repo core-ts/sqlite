@@ -16,23 +16,29 @@ export class PoolManager implements Manager {
     this.execScalar = this.execScalar.bind(this);
     this.count = this.count.bind(this);
   }
-  exec(sql: string, args?: any[]): Promise<number> {
-    return exec(this.db, sql, args);
+  exec(sql: string, args?: any[], ctx?: any): Promise<number> {
+    const p = (ctx ? ctx : this.db);
+    return exec(p, sql, args);
   }
-  execBatch(statements: Statement[], firstSuccess?: boolean): Promise<number> {
-    return execBatch(this.db, statements, firstSuccess);
+  execBatch(statements: Statement[], firstSuccess?: boolean, ctx?: any): Promise<number> {
+    const p = (ctx ? ctx : this.db);
+    return execBatch(p, statements, firstSuccess);
   }
-  query<T>(sql: string, args?: any[], m?: StringMap, fields?: Attribute[]): Promise<T[]> {
-    return query(this.db, sql, args, m, fields);
+  query<T>(sql: string, args?: any[], m?: StringMap, fields?: Attribute[], ctx?: any): Promise<T[]> {
+    const p = (ctx ? ctx : this.db);
+    return query(p, sql, args, m, fields);
   }
-  queryOne<T>(sql: string, args?: any[], m?: StringMap, fields?: Attribute[]): Promise<T> {
-    return queryOne(this.db, sql, args, m, fields);
+  queryOne<T>(sql: string, args?: any[], m?: StringMap, fields?: Attribute[], ctx?: any): Promise<T> {
+    const p = (ctx ? ctx : this.db);
+    return queryOne(p, sql, args, m, fields);
   }
-  execScalar<T>(sql: string, args?: any[]): Promise<T> {
-    return execScalar<T>(this.db, sql, args);
+  execScalar<T>(sql: string, args?: any[], ctx?: any): Promise<T> {
+    const p = (ctx ? ctx : this.db);
+    return execScalar<T>(p, sql, args);
   }
-  count(sql: string, args?: any[]): Promise<number> {
-    return count(this.db, sql, args);
+  count(sql: string, args?: any[], ctx?: any): Promise<number> {
+    const p = (ctx ? ctx : this.db);
+    return count(p, sql, args);
   }
 }
 export function execute(db: Database, sql: string): Promise<void> {
@@ -249,15 +255,15 @@ export function handleBool<T>(objs: T[], bools: Attribute[]): T[] {
   }
   for (const obj of objs) {
     for (const field of bools) {
-      const value = obj[field.name];
-      if (value != null && value !== undefined) {
+      const v = obj[field.name];
+      if (typeof v !== 'boolean' && v != null && v !== undefined) {
         const b = field.true;
         if (b == null || b === undefined) {
           // tslint:disable-next-line:triple-equals
-          obj[field.name] = ('1' == value || 'T' == value || 'Y' == value);
+          obj[field.name] = ('1' == v || 'T' == v || 'Y' == v);
         } else {
           // tslint:disable-next-line:triple-equals
-          obj[field.name] = (value == b ? true : false);
+          obj[field.name] = (v == b ? true : false);
         }
       }
     }

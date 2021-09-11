@@ -1,6 +1,6 @@
 {
   "name": "sqlite3-core",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "sqlite",
   "main": "./lib/index.js",
   "types": "./src/index.ts",
