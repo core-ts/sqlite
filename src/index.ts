@@ -9,12 +9,17 @@ export class resource {
 
 export class PoolManager implements Manager {
   constructor(public db: Database) {
+    this.param = this.param.bind(this);
     this.exec = this.exec.bind(this);
     this.execBatch = this.execBatch.bind(this);
     this.query = this.query.bind(this);
     this.queryOne = this.queryOne.bind(this);
     this.execScalar = this.execScalar.bind(this);
     this.count = this.count.bind(this);
+  }
+  driver = 'sqlite';
+  param(i: number): string {
+    return '?';
   }
   exec(sql: string, args?: any[], ctx?: any): Promise<number> {
     const p = (ctx ? ctx : this.db);
@@ -167,7 +172,7 @@ export function execScalar<T>(db: Database, sql: string, args?: any[]): Promise<
       return null;
     } else {
       const keys = Object.keys(r);
-      return r[keys[0]];
+      return (r as any)[keys[0]];
     }
   });
 }
@@ -198,7 +203,7 @@ export function saveBatch<T>(db: Database|((statements: Statement[]) => Promise<
     }
   }
 }
-export function toArray(arr: any[]): any[] {
+export function toArray(arr?: any[]): any[] {
   if (!arr || arr.length === 0) {
     return [];
   }
@@ -254,16 +259,19 @@ export function handleBool<T>(objs: T[], bools: Attribute[]): T[] {
     return objs;
   }
   for (const obj of objs) {
+    const o: any = obj;
     for (const field of bools) {
-      const v = obj[field.name];
-      if (typeof v !== 'boolean' && v != null && v !== undefined) {
-        const b = field.true;
-        if (b == null || b === undefined) {
-          // tslint:disable-next-line:triple-equals
-          obj[field.name] = ('1' == v || 'T' == v || 'Y' == v);
-        } else {
-          // tslint:disable-next-line:triple-equals
-          obj[field.name] = (v == b ? true : false);
+      if (field.name) {
+        const v = o[field.name];
+        if (typeof v !== 'boolean' && v != null && v !== undefined) {
+          const b = field.true;
+          if (b == null || b === undefined) {
+            // tslint:disable-next-line:triple-equals
+            o[field.name] = ('1' == v || 'T' == v || 'Y' == v);
+          } else {
+            // tslint:disable-next-line:triple-equals
+            o[field.name] = (v == b ? true : false);
+          }
         }
       }
     }
@@ -285,7 +293,7 @@ export function map<T>(obj: T, m?: StringMap): any {
     if (!k0) {
       k0 = key;
     }
-    obj2[k0] = obj[key];
+    obj2[k0] = (obj as any)[key];
   }
   return obj2;
 }
@@ -314,11 +322,11 @@ export function mapArray<T>(results: T[], m?: StringMap): T[] {
   }
   return objs;
 }
-export function getFields(fields: string[], all?: string[]): string[] {
+export function getFields(fields: string[], all?: string[]): string[]|undefined {
   if (!fields || fields.length === 0) {
     return undefined;
   }
-  const ext: string[] = [];
+  const ext: string [] = [];
   if (all) {
     for (const s of fields) {
       if (all.includes(s)) {
@@ -367,7 +375,7 @@ export class StringService {
   load(key: string, max: number): Promise<string[]> {
     const s = `select ${this.column} from ${this.table} where ${this.column} like $1 order by ${this.column} limit ${max}`;
     return query(this.db, s, ['' + key + '%']).then(arr => {
-      return arr.map(i => i[this.column] as string);
+      return arr.map(i => (i as any)[this.column] as string);
     });
   }
   save(values: string[]): Promise<number> {
@@ -384,7 +392,7 @@ export class StringService {
   }
 }
 
-export function version(attrs: Attributes): Attribute {
+export function version(attrs: Attributes): Attribute|undefined {
   const ks = Object.keys(attrs);
   for (const k of ks) {
     const attr = attrs[k];
@@ -424,7 +432,7 @@ export class SqliteWriter<T> {
       if (this.exec) {
         return this.exec(stmt.query, stmt.params);
       } else {
-        return exec(this.db, stmt.query, stmt.params);
+        return exec(this.db as any, stmt.query, stmt.params);
       }
     } else {
       return Promise.resolve(0);
@@ -469,7 +477,7 @@ export class SqliteBatchWriter<T> {
       if (this.execute) {
         return this.execute(stmts);
       } else {
-        return execBatch(this.pool, stmts);
+        return execBatch(this.pool as any, stmts);
       }
     } else {
       return Promise.resolve(0);
@@ -482,13 +490,11 @@ export interface AnyMap {
 }
 // tslint:disable-next-line:max-classes-per-file
 export class SQLiteChecker {
-  constructor(private db: Database, private service?: string, private timeout?: number) {
-    if (!this.timeout) {
-      this.timeout = 4200;
-    }
-    if (!this.service) {
-      this.service = 'sqlite';
-    }
+  timeout: number;
+  service: string;
+  constructor(private db: Database, service?: string, timeout?: number) {
+    this.timeout = (timeout ? timeout : 4200);
+    this.service = (service ? service : 'sqlite');
     this.check = this.check.bind(this);
     this.name = this.name.bind(this);
     this.build = this.build.bind(this);
