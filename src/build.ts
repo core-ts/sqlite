@@ -44,7 +44,7 @@ export function metadata(attrs: Attributes): Metadata {
     if (attr.version) {
       m.version = k;
     }
-    const field = (attr.field ? attr.field : k);
+    const field = (attr.column ? attr.column : k);
     const s = field.toLowerCase();
     if (s !== k) {
       mp[s] = k;
@@ -79,7 +79,7 @@ export function buildToSave<T>(obj: T, table: string, attrs: Attributes, buildPa
         v = attr.default;
       }
       if (v !== undefined) {
-        const field = (attr.field ? attr.field : k);
+        const field = (attr.column ? attr.column : k);
         cols.push(field);
         if (v === '') {
           values.push(`''`);
@@ -137,7 +137,7 @@ export function buildToSaveBatch<T>(objs: T[], table: string, attrs: Attributes,
           v = attr.default;
         }
         if (v !== undefined) {
-          const field = (attr.field ? attr.field : k);
+          const field = (attr.column ? attr.column : k);
           cols.push(field);
           if (v === '') {
             values.push(`''`);
